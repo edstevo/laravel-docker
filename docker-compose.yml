@@ -1,24 +1,54 @@
-version: '3'
+version: "3"
+networks:
+  app-tier:
+    driver: bridge
+
 services:
 
   # The Application
   app:
-    image: edstevo/app
+    image: edstevo/php
+    container_name: app
     build:
-      context: ./
-      dockerfile: .docker/app.dockerfile
-    working_dir: /var/www
+      context: .
+      dockerfile: .docker/php/Dockerfile
+    networks:
+      - app-tier
+    links:
+      - db
+    ports:
+      - 9002:9000
     volumes:
-      - ./:/var/www
+      - .:/var/www
+    environment:
+      - "DB_PORT=${DB_PORT}"
+      - "DB_HOST=db"
 
   # The Web Server
-  web:
-    image: edstevo/web
+  nginx:
+    image: edstevo/nginx
+    container_name: nginx
     build:
-      context: ./
-      dockerfile: .docker/web.dockerfile
-    working_dir: /var/www
-    volumes:
-    - ./:/var/www
+      context: .
+      dockerfile: .docker/nginx/Dockerfile
+    networks:
+      - app-tier
     ports:
-    - 8000:80
+      - 8000:80
+      - 8001:8001
+    volumes:
+      - ./public:/var/www/public
+
+  # The Database
+  db:
+    image: mysql:5.6
+    container_name: db
+    ports:
+      - ${DB_PORT}:3306
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - ./storage/docker/mysql:/var/lib/mysql
